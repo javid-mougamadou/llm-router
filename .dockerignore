@@ -1,0 +1,33 @@
+# Git
+.git/
+.gitignore
+
+# Environment & secrets
+.env
+
+# Data
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# Docs & scripts (not needed in image)
+README.md
+example.sh
+docker-compose.yml
+run.sh
+tests/
+pytest.ini

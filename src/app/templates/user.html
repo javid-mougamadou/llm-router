@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en"><script>document.documentElement.classList.toggle('dark',localStorage.getItem('theme')!=='light')</script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Router — Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23000'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='20' fill='%23fff'%3EL%3C/text%3E%3C/svg%3E">
+<style>
+/* === Basecoat Theme Variables === */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.965 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.965 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-bg: oklch(0.962 0.044 12.17);
+  --border: oklch(0 0 0 / 10%);
+  --input: oklch(0 0 0 / 5%);
+  --ring: oklch(0.556 0 0);
+  --success: oklch(0.517 0.174 142.5);
+  --success-bg: oklch(0.962 0.044 156.74);
+  --warning: oklch(0.769 0.189 70.08);
+  --warning-bg: oklch(0.962 0.059 95.28);
+  color-scheme: light;
+}
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.371 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-bg: oklch(0.3 0.06 25);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --success: oklch(0.696 0.17 162.48);
+  --success-bg: oklch(0.269 0.04 162);
+  --warning: oklch(0.828 0.189 84.429);
+  --warning-bg: oklch(0.35 0.07 84);
+  color-scheme: dark;
+}
+
+/* === Base Reset === */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* === Card === */
+.card {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.card > h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--foreground);
+}
+
+/* === Table === */
+.table { width: 100%; caption-bottom: bottom; font-size: 0.8125rem; border-collapse: collapse; }
+.table thead tr { border-bottom: 1px solid var(--border); }
+.table tbody tr:last-child { border-bottom: none; }
+.table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+.table tbody tr:hover { background: var(--muted); }
+.table th {
+  color: var(--foreground); height: 2.5rem; padding: 0.5rem;
+  text-align: left; vertical-align: middle; font-weight: 500;
+  font-size: 0.8125rem; white-space: nowrap;
+}
+.table td {
+  padding: 0.5rem; vertical-align: middle; white-space: nowrap;
+}
+.table td.muted { color: var(--muted-foreground); font-size: 0.75rem; }
+.table td.mono { font-family: monospace; font-size: 0.75rem; }
+.table tr.total-row { border-top: 2px solid var(--accent); font-weight: 600; }
+
+/* === Badge === */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9999px; padding: 0.125rem 0.5rem;
+  font-size: 0.75rem; font-weight: 500; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.badge-ok { background: var(--success-bg); color: var(--success); }
+.badge-off { background: var(--destructive-bg); color: var(--destructive); }
+
+/* === Button === */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  white-space: nowrap; font-size: 0.8125rem; font-weight: 500;
+  height: 2rem; padding: 0 0.75rem; gap: 0.375rem;
+  border-radius: calc(var(--radius) - 2px); border: none;
+  cursor: pointer; transition: all 0.15s;
+  outline: none; text-decoration: none;
+}
+.btn-primary, .btn {
+  background: var(--primary); color: var(--primary-foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.btn-primary:hover, .btn:hover { opacity: 0.9; }
+.btn-secondary {
+  background: var(--secondary); color: var(--secondary-foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.btn-secondary:hover { opacity: 0.8; }
+.btn-destructive {
+  background: var(--destructive); color: #fff;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.btn-destructive:hover { opacity: 0.9; }
+.btn-sm {
+  height: 1.75rem; padding: 0 0.5rem; font-size: 0.75rem;
+}
+
+/* === Input === */
+input[type="text"], input[type="password"],
+input[type="number"], input[type="email"] {
+  appearance: none;
+  background: var(--input);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  height: 2rem;
+  outline: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px oklch(0.556 0 0 / 0.3);
+}
+
+/* === Budget Bar === */
+.budget-bar {
+  background: var(--muted); border-radius: calc(var(--radius) - 4px);
+  height: 1.5rem; position: relative; min-width: 12rem;
+  overflow: hidden;
+}
+.budget-fill {
+  height: 100%; border-radius: calc(var(--radius) - 4px);
+  background: var(--primary); transition: width 0.3s;
+}
+.budget-fill.warn { background: var(--warning); }
+.budget-fill.over { background: var(--destructive); }
+.budget-text {
+  position: absolute; top: 0; left: 0.5rem;
+  line-height: 1.5rem; font-size: 0.75rem;
+  color: var(--foreground); font-weight: 500;
+}
+
+/* === Top Bar === */
+.top-bar {
+  display: flex; justify-content: space-between;
+  align-items: center; padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.top-bar h1 { font-size: 1.125rem; font-weight: 600; }
+.top-bar .subtitle {
+  font-size: 0.8125rem; color: var(--muted-foreground);
+}
+.top-bar .right { display: flex; gap: 0.5rem; align-items: center; }
+
+/* === Content === */
+.content { padding: 1rem 1.25rem; }
+
+/* === Login === */
+#login-screen {
+  display: flex; align-items: center;
+  justify-content: center; height: 100vh;
+}
+.login-box {
+  background: var(--card); border: 1px solid var(--border);
+  padding: 2rem; border-radius: var(--radius); width: 22rem;
+}
+.login-box h1 {
+  margin-bottom: 1.5rem; text-align: center;
+  font-size: 1.25rem; font-weight: 600;
+}
+.login-box input {
+  width: 100%; margin-bottom: 0.75rem; height: 2.25rem;
+}
+.login-box .btn {
+  width: 100%; height: 2.25rem; font-size: 0.875rem;
+}
+.login-box .error {
+  color: var(--destructive); font-size: 0.8125rem;
+  margin-top: 0.5rem; text-align: center;
+}
+
+/* === Field === */
+.field {
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.field label {
+  font-size: 0.75rem; font-weight: 500;
+  color: var(--muted-foreground);
+}
+.field-row {
+  display: flex; gap: 0.5rem; align-items: flex-end;
+  flex-wrap: wrap; margin-top: 0.5rem;
+}
+.field-error {
+  color: var(--destructive); font-size: 0.8125rem;
+  margin-top: 0.375rem; display: none;
+}
+
+/* === Budget Overview === */
+.budget-grid {
+  display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.75rem;
+}
+.budget-item {
+  flex: 1; min-width: 14rem;
+}
+.budget-label {
+  font-size: 0.8125rem; color: var(--muted-foreground);
+  margin-bottom: 0.375rem;
+}
+
+/* === Toaster (basecoat) === */
+.toaster {
+  position: fixed; bottom: 0; right: 0; padding: 1rem;
+  pointer-events: none; z-index: 50; width: 100%;
+  max-width: 22.5rem; display: flex; flex-direction: column-reverse;
+}
+.toast {
+  pointer-events: auto; width: 100%; margin-top: 1rem;
+  animation: toast-up 0.3s ease-in-out;
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows 0.3s, opacity 0.3s, margin 0.3s;
+}
+.toast[aria-hidden="true"] {
+  grid-template-rows: 0fr; opacity: 0; margin: 0;
+  overflow: hidden;
+}
+.toast-content {
+  color: var(--popover-foreground); font-size: 0.8125rem;
+  background: var(--popover); border: 1px solid var(--border);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / .2);
+  border-radius: calc(var(--radius)); overflow: hidden;
+  display: flex; gap: 0.625rem; padding: 0.75rem; align-items: center;
+}
+.toast-content svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+.toast-content section h2 { font-weight: 500; letter-spacing: -0.01em; }
+.toast-content section p { color: var(--muted-foreground); word-break: break-all; }
+@keyframes toast-up {
+  from { opacity: 0; transform: translateY(100%); }
+}
+
+/* === Tooltip (basecoat) === */
+[data-tooltip] { position: relative; }
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute; background: var(--foreground);
+  color: var(--background); z-index: 60;
+  max-width: 16rem; width: max-content;
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.25rem 0.75rem; font-size: 0.75rem;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s, transform 0.15s;
+  bottom: 100%; left: 50%; transform: translateX(-50%) translateY(0.5rem);
+  margin-bottom: 0.375rem;
+}
+[data-tooltip]:hover::before {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* === Kbd (basecoat) === */
+.kbd {
+  background: var(--muted); color: var(--muted-foreground);
+  pointer-events: none; display: inline-flex;
+  height: 1.25rem; min-width: 1.25rem;
+  align-items: center; justify-content: center;
+  gap: 0.25rem; border-radius: 0.25rem;
+  padding: 0 0.25rem; font-family: sans-serif;
+  font-size: 0.6875rem; font-weight: 500; user-select: none;
+}
+
+/* === Theme Toggle === */
+.theme-toggle {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px); cursor: pointer;
+  width: 1.75rem; height: 1.75rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--foreground); transition: all 0.15s;
+}
+.theme-toggle:hover { background: var(--accent); }
+.theme-toggle svg { width: 0.875rem; height: 0.875rem; }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <button class="theme-toggle" onclick="toggleTheme()" style="position:fixed;top:1rem;right:1rem" data-tooltip="Toggle theme" id="themeBtn1"></button>
+  <div class="login-box">
+    <h1>LLM Router</h1>
+    <input type="text" id="loginUser" placeholder="Username" autofocus>
+    <input type="password" id="loginPass" placeholder="Password">
+    <button class="btn" onclick="doLogin()">Login <span class="kbd" style="margin-left:0.375rem">&#9166;</span></button>
+    <div id="loginError" class="error"></div>
+  </div>
+</div>
+
+<!-- Dashboard (hidden until login) -->
+<div id="dashboard" style="display:none">
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div>
+    <h1>My Dashboard</h1>
+    <span id="userName" class="subtitle"></span>
+  </div>
+  <div class="right">
+    <button class="theme-toggle" onclick="toggleTheme()" data-tooltip="Toggle theme" id="themeBtn2"></button>
+    <button class="btn btn-secondary btn-sm" data-tooltip="Reload all data" onclick="refreshAll()">Refresh</button>
+    <button class="btn btn-destructive btn-sm" data-tooltip="End session" onclick="doLogout()">Logout</button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- Budget Overview -->
+<div class="card">
+  <h2>Budget Overview</h2>
+  <div class="budget-grid">
+    <div class="budget-item">
+      <div class="budget-label">Monthly Budget</div>
+      <div class="budget-bar">
+        <div id="monthlyFill" class="budget-fill" style="width:0%"></div>
+        <div id="monthlyText" class="budget-text">Loading...</div>
+      </div>
+    </div>
+    <div class="budget-item">
+      <div class="budget-label">Daily Budget</div>
+      <div class="budget-bar">
+        <div id="dailyFill" class="budget-fill" style="width:0%"></div>
+        <div id="dailyText" class="budget-text">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password -->
+<div class="card">
+  <h2>Change Password</h2>
+  <div class="field-row">
+    <div class="field">
+      <label>Current password</label>
+      <input type="password" id="curPwd" placeholder="Current password" style="width:11rem">
+    </div>
+    <div class="field">
+      <label>New password</label>
+      <input type="password" id="newPwd" placeholder="New password" style="width:11rem">
+    </div>
+    <div class="field">
+      <label>Confirm</label>
+      <input type="password" id="confirmPwd" placeholder="Confirm" style="width:11rem">
+    </div>
+    <button class="btn" onclick="changePassword()" style="align-self:flex-end">Update</button>
+  </div>
+  <div id="pwdError" class="field-error"></div>
+</div>
+
+<!-- API Keys -->
+<div class="card">
+  <h2>My API Keys</h2>
+  <table class="table"><thead><tr>
+    <th>Key</th><th>Label</th>
+    <th>Active</th><th>Created</th>
+  </tr></thead>
+  <tbody id="keysBody"></tbody></table>
+</div>
+
+<!-- Daily Usage -->
+<div class="card">
+  <h2>Today's Usage</h2>
+  <table class="table"><thead><tr>
+    <th>Model</th><th>Requests</th>
+    <th>Input Tokens</th><th>Output Tokens</th>
+    <th>Cost ($)</th>
+  </tr></thead>
+  <tbody id="dailyBody"></tbody></table>
+</div>
+
+<!-- Monthly Usage -->
+<div class="card">
+  <h2>This Month's Usage</h2>
+  <table class="table"><thead><tr>
+    <th>Model</th><th>Requests</th>
+    <th>Input Tokens</th><th>Output Tokens</th>
+    <th>Cost ($)</th>
+  </tr></thead>
+  <tbody id="monthlyBody"></tbody></table>
+</div>
+
+<!-- History -->
+<div class="card">
+  <h2>Monthly History</h2>
+  <table class="table"><thead><tr>
+    <th>Month</th><th>Budget ($)</th>
+    <th>Spend ($)</th><th>Usage (%)</th>
+  </tr></thead>
+  <tbody id="historyBody"></tbody></table>
+</div>
+
+</div><!-- .content -->
+</div><!-- #dashboard -->
+
+<div class="toaster" id="toaster"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+// -- HTML escape (XSS prevention) --
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// -- Theme toggle (dark/light) --
+const SUN_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+const MOON_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+function isDark() { return document.documentElement.classList.contains('dark'); }
+function updateThemeIcons() {
+  const icon = isDark() ? SUN_ICON : MOON_ICON;
+  document.querySelectorAll('.theme-toggle').forEach(b => b.innerHTML = icon);
+}
+function toggleTheme() {
+  const dark = !isDark();
+  document.documentElement.classList.toggle('dark', dark);
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+  updateThemeIcons();
+}
+updateThemeIcons();
+
+let userToken = '';
+let userName = '';
+let refreshInterval = null;
+
+function hdr() {
+  return {
+    'x-user-token': userToken,
+    'content-type': 'application/json'
+  };
+}
+
+const TOAST_ICONS = {
+  success: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+  error: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--destructive)"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+};
+function toast(msg, ok=true) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.setAttribute('role', ok ? 'status' : 'alert');
+  el.innerHTML = `<div class="toast-content">
+    ${ok ? TOAST_ICONS.success : TOAST_ICONS.error}
+    <section><p>${msg}</p></section>
+  </div>`;
+  $('#toaster').appendChild(el);
+  setTimeout(() => {
+    el.setAttribute('aria-hidden', 'true');
+    el.addEventListener('transitionend', () => el.remove(), {once:true});
+  }, ok ? 3000 : 5000);
+}
+
+async function api(path) {
+  const r = await fetch(path, {headers: hdr()});
+  if (!r.ok) {
+    if (r.status === 401) { doLogout(); return null; }
+    throw new Error(await r.text());
+  }
+  return r.json();
+}
+
+// -- Login / Logout --
+
+async function doLogin() {
+  const user = $('#loginUser').value.trim();
+  const pass = $('#loginPass').value;
+  $('#loginError').textContent = '';
+  try {
+    const r = await fetch('/user/login', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({
+        username: user, password: pass
+      })
+    });
+    if (!r.ok) throw new Error('Invalid credentials');
+    const data = await r.json();
+    userToken = data.token;
+    userName = data.name;
+    sessionStorage.setItem('userToken', userToken);
+    sessionStorage.setItem('userName', userName);
+    showDashboard();
+  } catch(e) {
+    $('#loginError').textContent = e.message;
+  }
+}
+
+function doLogout() {
+  userToken = '';
+  userName = '';
+  sessionStorage.removeItem('userToken');
+  sessionStorage.removeItem('userName');
+  clearInterval(refreshInterval);
+  $('#dashboard').style.display = 'none';
+  $('#login-screen').style.display = 'flex';
+  $('#loginPass').value = '';
+}
+
+function showDashboard() {
+  $('#login-screen').style.display = 'none';
+  $('#dashboard').style.display = 'block';
+  $('#userName').textContent = userName;
+  refreshAll();
+  refreshInterval = setInterval(
+    refreshAll, {{REFRESH_INTERVAL}} * 1000
+  );
+}
+
+// -- Data loading --
+
+function budgetBar(fill, text, spend, budget) {
+  const pct = budget > 0
+    ? Math.min(100, (spend/budget)*100) : 0;
+  const cls = pct >= 100
+    ? 'over' : pct >= 80 ? 'warn' : '';
+  fill.className = 'budget-fill ' + cls;
+  fill.style.width = (budget > 0 ? pct : 0) + '%';
+  const str = budget > 0
+    ? '$'+spend.toFixed(4)+' / $'+budget.toFixed(2)
+    : '$'+spend.toFixed(4)+' / unlimited';
+  text.textContent = str;
+}
+
+async function loadProfile() {
+  const u = await api('/user/me');
+  if (!u) return;
+  budgetBar(
+    $('#monthlyFill'), $('#monthlyText'),
+    u.monthly_spend||0, u.monthly_budget||0
+  );
+  budgetBar(
+    $('#dailyFill'), $('#dailyText'),
+    u.daily_spend||0, u.daily_budget||0
+  );
+}
+
+async function loadKeys() {
+  const rows = await api('/user/keys');
+  if (!rows) return;
+  const body = $('#keysBody');
+  body.innerHTML = '';
+  rows.forEach(k => {
+    body.innerHTML += '<tr>'
+      + '<td class="mono">' + esc(k.key) + '</td>'
+      + '<td>' + esc(k.label||'—') + '</td>'
+      + '<td><span class="badge '
+      + (k.active?'badge-ok':'badge-off') + '">'
+      + (k.active?'active':'disabled')
+      + '</span></td>'
+      + '<td class="muted">'
+      + esc(k.created_at||'') + '</td></tr>';
+  });
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4"'
+      + ' class="muted">No keys</td></tr>';
+  }
+}
+
+function renderUsage(rows, bodyId) {
+  const body = $(bodyId);
+  body.innerHTML = '';
+  let tReq=0, tIn=0, tOut=0, tCost=0;
+  (rows||[]).forEach(r => {
+    tReq += r.requests||0;
+    tIn += r.input_tokens||0;
+    tOut += r.output_tokens||0;
+    tCost += r.cost||0;
+    body.innerHTML += '<tr>'
+      + '<td>' + esc(r.model) + '</td>'
+      + '<td>' + r.requests + '</td>'
+      + '<td>' + (r.input_tokens||0).toLocaleString()
+      + '</td>'
+      + '<td>' + (r.output_tokens||0).toLocaleString()
+      + '</td>'
+      + '<td>$' + (r.cost||0).toFixed(4) + '</td>'
+      + '</tr>';
+  });
+  if ((rows||[]).length > 0) {
+    body.innerHTML += '<tr class="total-row">'
+      + '<td>Total</td>'
+      + '<td>' + tReq + '</td>'
+      + '<td>' + tIn.toLocaleString() + '</td>'
+      + '<td>' + tOut.toLocaleString() + '</td>'
+      + '<td>$' + tCost.toFixed(4) + '</td></tr>';
+  }
+  if (!(rows||[]).length) {
+    body.innerHTML = '<tr><td colspan="5"'
+      + ' class="muted">No usage yet'
+      + '</td></tr>';
+  }
+}
+
+async function loadDailyUsage() {
+  const rows = await api('/user/usage/daily');
+  if (!rows) return;
+  renderUsage(rows, '#dailyBody');
+}
+
+async function loadMonthlyUsage() {
+  const rows = await api('/user/usage/monthly');
+  if (!rows) return;
+  renderUsage(rows, '#monthlyBody');
+}
+
+async function loadHistory() {
+  const rows = await api('/user/history');
+  if (!rows) return;
+  const body = $('#historyBody');
+  body.innerHTML = '';
+  rows.forEach(r => {
+    const pct = r.budget > 0
+      ? ((r.spend/r.budget)*100).toFixed(1) : '—';
+    body.innerHTML += '<tr>'
+      + '<td>' + esc(r.month) + '</td>'
+      + '<td>$' + (r.budget||0).toFixed(2) + '</td>'
+      + '<td>$' + (r.spend||0).toFixed(4) + '</td>'
+      + '<td>' + (typeof pct==='string'
+        ? pct : pct+'%') + '</td></tr>';
+  });
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4"'
+      + ' class="muted">No history yet'
+      + '</td></tr>';
+  }
+}
+
+async function changePassword() {
+  const cur = $('#curPwd').value;
+  const npw = $('#newPwd').value;
+  const cfm = $('#confirmPwd').value;
+  const err = $('#pwdError');
+  err.style.display = 'none';
+  if (!cur || !npw || !cfm) {
+    err.textContent = 'All fields are required';
+    err.style.display = 'block'; return;
+  }
+  if (npw !== cfm) {
+    err.textContent = 'New passwords do not match';
+    err.style.display = 'block'; return;
+  }
+  if (npw.length < 4) {
+    err.textContent = 'Password too short (min 4 chars)';
+    err.style.display = 'block'; return;
+  }
+  try {
+    const r = await fetch('/user/change-password', {
+      method: 'POST',
+      headers: hdr(),
+      body: JSON.stringify({
+        current_password: cur,
+        new_password: npw
+      })
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(t.includes('wrong')
+        ? 'Current password is wrong' : t);
+    }
+    toast('Password updated');
+    $('#curPwd').value = '';
+    $('#newPwd').value = '';
+    $('#confirmPwd').value = '';
+  } catch(e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  }
+}
+
+async function refreshAll() {
+  try {
+    await loadProfile();
+    await loadKeys();
+    await loadDailyUsage();
+    await loadMonthlyUsage();
+    await loadHistory();
+  } catch(e) {
+    toast(e.message, false);
+  }
+}
+
+// -- Enter on login --
+$('#loginUser').addEventListener('keydown', e => {
+  if (e.key==='Enter') doLogin();
+});
+$('#loginPass').addEventListener('keydown', e => {
+  if (e.key==='Enter') doLogin();
+});
+
+// -- Auto-login from session --
+const savedToken = sessionStorage.getItem('userToken');
+const savedName = sessionStorage.getItem('userName');
+if (savedToken) {
+  userToken = savedToken;
+  userName = savedName || '';
+  showDashboard();
+}
+</script>
+</body>
+</html>

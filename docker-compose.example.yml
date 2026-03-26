@@ -1,0 +1,40 @@
+# LLM Router — Docker Compose
+# Usage:
+#   cp docker-compose.example.yml docker-compose.yml
+#   cp .env.example .env          # then edit values
+#   docker compose up dev         # development (hot-reload)
+#   docker compose up prod        # production  (multi-worker)
+
+x-common: &common
+  build:
+    context: .
+  env_file: .env
+  volumes:
+    - ./data:/data
+    # Mount your AWS credentials (adjust path as needed)
+    # - ~/.aws/credentials:/root/.aws/credentials:ro
+  restart: unless-stopped
+
+services:
+  dev:
+    <<: *common
+    container_name: llm-router-dev
+    build:
+      context: .
+      target: dev
+    volumes:
+      - ./data:/data
+      - ./src:/app
+    profiles: [dev]
+    ports:
+      - "4000:4000"
+
+  prod:
+    <<: *common
+    container_name: llm-router
+    build:
+      context: .
+      target: prod
+    profiles: [prod]
+    ports:
+      - "4000:4000"

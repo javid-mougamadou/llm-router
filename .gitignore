@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Environment & secrets
+.env
+
+# Local overrides (may contain internal registry / proxy)
+Dockerfile
+docker-compose.yml
+run.sh
+src/app/templates/home.private.html
+
+# Data
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Docker build artifact
+ca-certificates.crt
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/

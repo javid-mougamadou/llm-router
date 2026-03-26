@@ -1,0 +1,42 @@
+# ============================================================
+# LLM Router — Multi-stage Dockerfile
+# Stages: base -> dev | prod
+# ============================================================
+
+# ------ base: shared layer (deps + source) ------------------
+FROM python:3.12-slim AS base
+
+WORKDIR /app
+
+# Install production dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application source
+COPY src/ ./
+
+ENV LLM_ROUTER_DB=/data/llm_router.db
+VOLUME /data
+EXPOSE 4000
+
+# ------ dev: hot-reload with uvicorn --reload ----------------
+FROM base AS dev
+
+# Test dependencies (pytest, httpx…)
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+
+CMD ["uvicorn", "main:app", \
+     "--host", "0.0.0.0", "--port", "4000", \
+     "--reload", "--reload-dir", "/app"]
+
+# ------ prod: optimised, multi-worker uvicorn ----------------
+FROM base AS prod
+
+# To run as non-root, uncomment below and ensure volumes are writable:
+#   RUN adduser --system --no-create-home appuser \
+#       && chmod -R o+rX /app \
+#       && mkdir -p /data && chown appuser /data
+#   USER appuser
+
+CMD ["python", "main.py"]

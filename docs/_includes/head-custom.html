@@ -1,0 +1,21 @@
+<meta name="keywords" content="{% if page.keywords %}{{ page.keywords | join: ', ' }}{% elsif site.keywords %}{{ site.keywords | join: ', ' }}{% else %}LLM Router, AWS Bedrock, FastAPI{% endif %}">
+<meta name="robots" content="index, follow">
+<meta name="googlebot" content="index, follow">
+
+<!-- Schema.org SoftwareApplication JSON-LD -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "{{ site.title | default: 'LLM Router' }}",
+  "description": "{{ site.description | default: page.description }}",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Python",
+  "author": {
+    "@type": "Person",
+    "name": "{{ site.author | default: 'Javid Mougamadou' }}"
+  },
+  "url": "{{ site.url }}",
+  "keywords": "{% if page.keywords %}{{ page.keywords | join: ', ' }}{% elsif site.keywords %}{{ site.keywords | join: ', ' }}{% else %}LLM Router, AWS Bedrock, FastAPI proxy{% endif %}"
+}
+</script>

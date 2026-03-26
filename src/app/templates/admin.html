@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en"><script>document.documentElement.classList.toggle('dark',localStorage.getItem('theme')!=='light')</script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Router — Admin</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23000'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='700' font-size='20' fill='%23fff'%3EL%3C/text%3E%3C/svg%3E">
+<style>
+/* === Basecoat Theme Variables === */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.965 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.965 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.965 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0 0 0 / 10%);
+  --input: oklch(0 0 0 / 5%);
+  --ring: oklch(0.556 0 0);
+  --success: oklch(0.517 0.174 142.5);
+  --success-bg: oklch(0.962 0.044 156.74);
+  --warning: oklch(0.769 0.189 70.08);
+  --warning-bg: oklch(0.962 0.059 95.28);
+  --destructive-bg: oklch(0.962 0.044 12.17);
+  color-scheme: light;
+}
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.371 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --success: oklch(0.696 0.17 162.48);
+  --success-bg: oklch(0.269 0.04 162);
+  --warning: oklch(0.828 0.189 84.429);
+  --warning-bg: oklch(0.35 0.07 84);
+  --destructive-bg: oklch(0.3 0.06 25);
+  color-scheme: dark;
+}
+
+/* === Base Reset === */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+.hidden { display: none !important; }
+
+/* === Card === */
+.card {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.card > h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--foreground);
+}
+
+/* === Table === */
+.table { width: 100%; caption-bottom: bottom; font-size: 0.8125rem; border-collapse: collapse; }
+.table thead tr { border-bottom: 1px solid var(--border); }
+.table tbody tr:last-child { border-bottom: none; }
+.table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+.table tbody tr:hover { background: var(--muted); }
+.table th {
+  color: var(--foreground); height: 2.5rem; padding: 0.5rem;
+  text-align: left; vertical-align: middle; font-weight: 500;
+  font-size: 0.8125rem; white-space: nowrap;
+}
+.table td {
+  padding: 0.5rem; vertical-align: middle; white-space: nowrap;
+}
+.table td.muted { color: var(--muted-foreground); font-size: 0.75rem; }
+.table td.mono { font-family: monospace; font-size: 0.75rem; }
+.table tr.total-row { border-top: 2px solid var(--accent); font-weight: 600; }
+
+/* === Badge === */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9999px; padding: 0.125rem 0.5rem;
+  font-size: 0.75rem; font-weight: 500; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.badge-ok {
+  background: var(--success-bg); color: var(--success);
+}
+.badge-off {
+  background: var(--destructive-bg); color: var(--destructive);
+}
+
+/* === Button === */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  white-space: nowrap; font-size: 0.8125rem; font-weight: 500;
+  height: 2rem; padding: 0 0.75rem; gap: 0.375rem;
+  border-radius: calc(var(--radius) - 2px); border: none;
+  cursor: pointer; transition: all 0.15s;
+  outline: none; text-decoration: none;
+}
+.btn-primary, .btn {
+  background: var(--primary); color: var(--primary-foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.btn-primary:hover, .btn:hover { opacity: 0.9; }
+.btn-secondary {
+  background: var(--secondary); color: var(--secondary-foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.btn-secondary:hover { opacity: 0.8; }
+.btn-destructive {
+  background: var(--destructive); color: #fff;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.btn-destructive:hover { opacity: 0.9; }
+.btn-outline {
+  background: transparent; color: var(--foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.btn-outline:hover { background: var(--accent); }
+.btn-ghost {
+  background: transparent; color: var(--foreground); border: none;
+}
+.btn-ghost:hover { background: var(--accent); }
+.btn-sm {
+  height: 1.75rem; padding: 0 0.5rem; font-size: 0.75rem;
+}
+
+/* === Input & Select === */
+input[type="text"], input[type="password"],
+input[type="number"], input[type="email"],
+select {
+  appearance: none;
+  background: var(--input);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  height: 2rem;
+  outline: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+input:focus, select:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px oklch(0.556 0 0 / 0.3);
+}
+select option { background: var(--popover); color: var(--popover-foreground); }
+
+/* === Form Row === */
+.form-row {
+  display: flex; gap: 0.5rem; align-items: center;
+  margin-bottom: 0.75rem; flex-wrap: wrap;
+}
+.form-row label {
+  min-width: 5rem; font-size: 0.8125rem;
+  color: var(--muted-foreground); font-weight: 500;
+}
+
+/* === Budget Bar === */
+.budget-bar {
+  background: var(--muted); border-radius: calc(var(--radius) - 4px);
+  height: 1.25rem; position: relative; min-width: 7.5rem;
+  overflow: hidden;
+}
+.budget-fill {
+  height: 100%; border-radius: calc(var(--radius) - 4px);
+  background: var(--primary); transition: width 0.3s;
+}
+.budget-fill.warn { background: var(--warning); }
+.budget-fill.over { background: var(--destructive); }
+.budget-text {
+  position: absolute; top: 0; left: 0.5rem;
+  line-height: 1.25rem; font-size: 0.6875rem;
+  color: var(--foreground); font-weight: 500;
+}
+
+/* === Alert Banner === */
+.alert-banner {
+  padding: 0.5rem 1.25rem; font-size: 0.8125rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.alert-banner.ok { background: var(--success-bg); color: var(--success); }
+.alert-banner.err { background: var(--destructive-bg); color: var(--destructive); }
+.alert-banner.loading { background: var(--card); color: var(--muted-foreground); }
+
+/* === Top Bar === */
+.top-bar {
+  display: flex; justify-content: space-between;
+  align-items: center; padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.top-bar h1 { font-size: 1.125rem; font-weight: 600; }
+.top-bar .right { display: flex; gap: 0.5rem; align-items: center; }
+.top-bar .status { font-size: 0.8125rem; color: var(--muted-foreground); }
+
+/* === Content === */
+.content { padding: 1rem 1.25rem; }
+
+/* === Login === */
+#login-screen {
+  display: flex; align-items: center;
+  justify-content: center; height: 100vh;
+}
+.login-box {
+  background: var(--card); border: 1px solid var(--border);
+  padding: 2rem; border-radius: var(--radius); width: 22rem;
+}
+.login-box h1 {
+  margin-bottom: 1.5rem; text-align: center;
+  font-size: 1.25rem; font-weight: 600;
+}
+.login-box input {
+  width: 100%; margin-bottom: 0.75rem; height: 2.25rem;
+}
+.login-box .btn {
+  width: 100%; height: 2.25rem; font-size: 0.875rem;
+}
+.login-box .error {
+  color: var(--destructive); font-size: 0.8125rem;
+  margin-top: 0.5rem; text-align: center;
+}
+
+/* === Info Box === */
+.info-box {
+  background: var(--muted); border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.625rem 0.875rem; margin-bottom: 0.75rem;
+  font-size: 0.8125rem; color: var(--muted-foreground);
+}
+.info-box code {
+  background: var(--background); padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem; font-size: 0.75rem;
+  color: var(--foreground);
+}
+.info-box a { color: var(--primary); text-decoration: none; }
+.info-box a:hover { text-decoration: underline; }
+
+/* === Toaster (basecoat) === */
+.toaster {
+  position: fixed; bottom: 0; right: 0; padding: 1rem;
+  pointer-events: none; z-index: 50; width: 100%;
+  max-width: 22.5rem; display: flex; flex-direction: column-reverse;
+}
+.toast {
+  pointer-events: auto; width: 100%; margin-top: 1rem;
+  animation: toast-up 0.3s ease-in-out;
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows 0.3s, opacity 0.3s, margin 0.3s;
+}
+.toast[aria-hidden="true"] {
+  grid-template-rows: 0fr; opacity: 0; margin: 0;
+  overflow: hidden;
+}
+.toast-content {
+  color: var(--popover-foreground); font-size: 0.8125rem;
+  background: var(--popover); border: 1px solid var(--border);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / .2);
+  border-radius: calc(var(--radius)); overflow: hidden;
+  display: flex; gap: 0.625rem; padding: 0.75rem; align-items: center;
+}
+.toast-content svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+.toast-content section h2 { font-weight: 500; letter-spacing: -0.01em; }
+.toast-content section p { color: var(--muted-foreground); word-break: break-all; }
+@keyframes toast-up {
+  from { opacity: 0; transform: translateY(100%); }
+}
+
+/* === Dialog (basecoat) === */
+.dialog {
+  position: fixed; inset: 0; z-index: 50;
+  opacity: 0; transition: opacity 0.2s; pointer-events: none;
+}
+.dialog.open { opacity: 1; pointer-events: auto; }
+.dialog-backdrop {
+  position: fixed; inset: 0; background: rgb(0 0 0 / 0.5);
+}
+.dialog-panel {
+  background: var(--card); border: 1px solid var(--border);
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: calc(100% - 2rem); max-width: 28rem;
+  border-radius: var(--radius); padding: 1.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / .3);
+  display: flex; flex-direction: column; gap: 1rem;
+  transition: transform 0.2s;
+}
+.dialog.open .dialog-panel { transform: translate(-50%, -50%) scale(1); }
+.dialog-panel > header { display: flex; flex-direction: column; gap: 0.5rem; }
+.dialog-panel > header h2 { font-size: 1.125rem; font-weight: 600; line-height: 1; }
+.dialog-panel > header p { color: var(--muted-foreground); font-size: 0.875rem; }
+.dialog-panel > footer {
+  display: flex; gap: 0.5rem; justify-content: flex-end;
+}
+
+/* === Tooltip (basecoat) === */
+[data-tooltip] { position: relative; }
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute; background: var(--foreground);
+  color: var(--background); z-index: 60;
+  max-width: 16rem; width: max-content;
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.25rem 0.75rem; font-size: 0.75rem;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s, transform 0.15s;
+  bottom: 100%; left: 50%; transform: translateX(-50%) translateY(0.5rem);
+  margin-bottom: 0.375rem;
+}
+[data-tooltip]:hover::before {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* === Kbd (basecoat) === */
+.kbd {
+  background: var(--muted); color: var(--muted-foreground);
+  pointer-events: none; display: inline-flex;
+  height: 1.25rem; min-width: 1.25rem;
+  align-items: center; justify-content: center;
+  gap: 0.25rem; border-radius: 0.25rem;
+  padding: 0 0.25rem; font-family: sans-serif;
+  font-size: 0.6875rem; font-weight: 500; user-select: none;
+}
+
+/* === Switch (basecoat) === */
+.switch {
+  appearance: none; display: inline-flex;
+  height: 1.15rem; width: 2rem; flex-shrink: 0;
+  align-items: center; border-radius: 9999px;
+  border: 1px solid transparent; cursor: pointer;
+  background: var(--input); transition: all 0.2s;
+  outline: none;
+}
+.switch:checked { background: var(--primary); }
+.switch::before {
+  content: ''; display: block; pointer-events: none;
+  width: 1rem; height: 1rem; border-radius: 9999px;
+  background: var(--background); transition: all 0.2s;
+}
+.switch:checked::before {
+  margin-left: 0.875rem; background: var(--primary-foreground);
+}
+
+/* === Theme Toggle === */
+.theme-toggle {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px); cursor: pointer;
+  width: 1.75rem; height: 1.75rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--foreground); transition: all 0.15s;
+}
+.theme-toggle:hover { background: var(--accent); }
+.theme-toggle svg { width: 0.875rem; height: 0.875rem; }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <button class="theme-toggle" onclick="toggleTheme()" style="position:fixed;top:1rem;right:1rem" data-tooltip="Toggle theme" id="themeBtn1"></button>
+  <div class="login-box">
+    <h1>LLM Router</h1>
+    <input type="text" id="loginUser" placeholder="Username" autofocus>
+    <input type="password" id="loginPass" placeholder="Password">
+    <button class="btn" onclick="doLogin()">Login <span class="kbd" style="margin-left:0.375rem">&#9166;</span></button>
+    <div id="loginError" class="error"></div>
+  </div>
+</div>
+
+<!-- Admin Panel (hidden until login) -->
+<div id="admin-panel" class="hidden">
+
+<!-- AWS Banner -->
+<div id="aws-banner" class="alert-banner loading">
+  <span id="aws-dot">&#9679;</span>
+  <span id="aws-text">Checking AWS credentials...</span>
+</div>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <h1>LLM Router Admin</h1>
+  <div class="right">
+    <span id="status" class="status"></span>
+    <button class="theme-toggle" onclick="toggleTheme()" data-tooltip="Toggle theme" id="themeBtn2"></button>
+    <button class="btn btn-secondary btn-sm" data-tooltip="Reload all data" onclick="refreshData()">Refresh</button>
+    <button class="btn btn-destructive btn-sm" data-tooltip="End session" onclick="doLogout()">Logout</button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- Models -->
+<div class="card">
+  <h2>Models</h2>
+  <table class="table"><thead><tr>
+    <th>Name</th><th>Bedrock ID</th><th>Input $/1M</th><th>Output $/1M</th>
+  </tr></thead><tbody id="modelsBody"></tbody></table>
+</div>
+
+<!-- Users -->
+<div class="card">
+  <h2>Users</h2>
+  <div class="info-box">
+    <strong style="color:var(--warning)">&#9888; Default password:</strong>
+    <code>changeme</code>
+    — All new users are created with this password. Users can access their dashboard at
+    <a href="/user-ui">/user-ui</a>
+  </div>
+  <div class="form-row">
+    <input id="newUserName" placeholder="Username" type="text">
+    <input id="newUserBudget" placeholder="Monthly budget ($)" type="number" step="0.01" style="width:140px">
+    <input id="newUserDailyBudget" placeholder="Daily budget ($)" type="number" step="0.01" style="width:130px">
+    <button class="btn" onclick="createUser()">+ Add User</button>
+  </div>
+  <table class="table"><thead><tr>
+    <th>ID</th><th>Name</th><th>Monthly Budget</th><th>Daily Budget</th><th>Active</th><th>Created</th><th>Actions</th>
+  </tr></thead><tbody id="usersBody"></tbody></table>
+</div>
+
+<!-- API Keys -->
+<div class="card">
+  <h2>API Keys</h2>
+  <div class="form-row">
+    <select id="keyUserSelect"></select>
+    <input id="newKeyLabel" placeholder="Label" type="text">
+    <button class="btn" onclick="createKey()">+ Add Key</button>
+  </div>
+  <table class="table"><thead><tr>
+    <th>Key</th><th>User</th><th>Label</th><th>Active</th><th>Created</th><th>Actions</th>
+  </tr></thead><tbody id="keysBody"></tbody></table>
+</div>
+
+<!-- Usage -->
+<div class="card">
+  <h2>Usage</h2>
+  <table class="table"><thead><tr>
+    <th>User</th><th>Model</th><th>Requests</th><th>Input Tokens</th><th>Output Tokens</th><th>Cost ($)</th>
+  </tr></thead><tbody id="usageBody"></tbody></table>
+</div>
+
+<!-- Monthly Budget History -->
+<div class="card">
+  <h2>Monthly Budget History</h2>
+  <table class="table"><thead><tr>
+    <th>Month</th><th>User</th><th>Budget ($)</th><th>Spend ($)</th><th>Usage (%)</th>
+  </tr></thead><tbody id="historyBody"></tbody></table>
+</div>
+
+</div><!-- .content -->
+</div><!-- #admin-panel -->
+
+<!-- Toaster (basecoat) -->
+<div class="toaster" id="toaster"></div>
+
+<!-- Dialog (basecoat) -->
+<div class="dialog" id="dialog">
+  <div class="dialog-backdrop" onclick="closeDialog()"></div>
+  <div class="dialog-panel">
+    <header>
+      <h2 id="dialogTitle"></h2>
+      <p id="dialogDesc"></p>
+    </header>
+    <section id="dialogBody"></section>
+    <footer>
+      <button class="btn btn-outline" onclick="closeDialog()">Cancel</button>
+      <button class="btn" id="dialogConfirm">Confirm</button>
+    </footer>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+// -- HTML escape (XSS prevention) --
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// -- Theme toggle (dark/light) --
+const SUN_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+const MOON_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+function isDark() { return document.documentElement.classList.contains('dark'); }
+function updateThemeIcons() {
+  const icon = isDark() ? SUN_ICON : MOON_ICON;
+  document.querySelectorAll('.theme-toggle').forEach(b => b.innerHTML = icon);
+}
+function toggleTheme() {
+  const dark = !isDark();
+  document.documentElement.classList.toggle('dark', dark);
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+  updateThemeIcons();
+}
+updateThemeIcons();
+
+let masterKey = '';
+let usersCache = [];
+let refreshInterval = null;
+let awsInterval = null;
+let dialogResolve = null;
+
+const hdr = () => ({'x-api-key': masterKey, 'content-type': 'application/json'});
+
+const TOAST_ICONS = {
+  success: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--success)"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+  error: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--destructive)"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+};
+function toast(msg, ok=true) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.setAttribute('role', ok ? 'status' : 'alert');
+  el.innerHTML = `<div class="toast-content">
+    ${ok ? TOAST_ICONS.success : TOAST_ICONS.error}
+    <section><p>${msg}</p></section>
+  </div>`;
+  $('#toaster').appendChild(el);
+  setTimeout(() => {
+    el.setAttribute('aria-hidden', 'true');
+    el.addEventListener('transitionend', () => el.remove(), {once:true});
+  }, ok ? 3000 : 5000);
+}
+
+async function api(path, opts={}) {
+  const r = await fetch(path, {headers: hdr(), ...opts});
+  if (!r.ok) {
+    const e = await r.text();
+    throw new Error(e);
+  }
+  return r.json();
+}
+
+// -- Dialog --
+
+function openDialog(title, desc, bodyHtml, confirmLabel, isDanger) {
+  $('#dialogTitle').textContent = title;
+  $('#dialogDesc').textContent = desc;
+  $('#dialogBody').innerHTML = bodyHtml;
+  const btn = $('#dialogConfirm');
+  btn.textContent = confirmLabel || 'Confirm';
+  btn.className = isDanger ? 'btn btn-destructive' : 'btn';
+  $('#dialog').classList.add('open');
+  return new Promise(resolve => {
+    dialogResolve = resolve;
+    btn.onclick = () => {
+      dialogResolve = null;
+      $('#dialog').classList.remove('open');
+      resolve(true);
+    };
+  });
+}
+
+function closeDialog() {
+  $('#dialog').classList.remove('open');
+  if (dialogResolve) {
+    const r = dialogResolve;
+    dialogResolve = null;
+    r(false);
+  }
+}
+
+// -- Login / Logout --
+
+async function doLogin() {
+  const user = $('#loginUser').value.trim();
+  const pass = $('#loginPass').value;
+  $('#loginError').textContent = '';
+  try {
+    const r = await fetch('/admin/login', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({username: user, password: pass})
+    });
+    if (!r.ok) throw new Error('Invalid credentials');
+    const data = await r.json();
+    masterKey = data.master_key;
+    sessionStorage.setItem('masterKey', masterKey);
+    showAdmin();
+  } catch(e) {
+    $('#loginError').textContent = e.message;
+  }
+}
+
+function doLogout() {
+  masterKey = '';
+  sessionStorage.removeItem('masterKey');
+  clearInterval(refreshInterval);
+  clearInterval(awsInterval);
+  $('#admin-panel').classList.add('hidden');
+  $('#login-screen').classList.remove('hidden');
+  $('#loginPass').value = '';
+}
+
+function showAdmin() {
+  $('#login-screen').classList.add('hidden');
+  $('#admin-panel').classList.remove('hidden');
+  loadAll();
+  checkAws();
+  // Auto-refresh data (interval from config)
+  refreshInterval = setInterval(refreshData, {{REFRESH_INTERVAL}} * 1000);
+  // Check AWS every 60s
+  awsInterval = setInterval(checkAws, 60000);
+}
+
+// -- AWS Status --
+
+async function checkAws() {
+  const banner = $('#aws-banner');
+  const dot = $('#aws-dot');
+  const text = $('#aws-text');
+  banner.className = 'alert-banner loading';
+  text.textContent = 'Checking AWS credentials...';
+  try {
+    const r = await api('/admin/aws-status');
+    if (r.ok) {
+      banner.className = 'alert-banner ok';
+      text.textContent = `AWS OK — ${r.arn}`;
+    } else {
+      banner.className = 'alert-banner err';
+      text.textContent = `AWS Error — ${r.error}`;
+    }
+  } catch(e) {
+    banner.className = 'alert-banner err';
+    text.textContent = `AWS Error — ${e.message}`;
+  }
+}
+
+// -- Data loading --
+
+async function loadModels() {
+  const r = await api('/v1/models');
+  const body = $('#modelsBody');
+  body.innerHTML = '';
+  r.data.forEach(m => {
+    body.innerHTML += `<tr>
+      <td><strong>${esc(m.id)}</strong></td>
+      <td class="muted">${esc(m.bedrock_id||'—')}</td>
+      <td>${m.input_price != null ? '$'+m.input_price : '—'}</td>
+      <td>${m.output_price != null ? '$'+m.output_price : '—'}</td>
+    </tr>`;
+  });
+}
+
+async function loadUsers() {
+  usersCache = await api('/admin/users');
+  renderUsers();
+  renderKeyUserSelect();
+}
+
+function renderUsers() {
+  const body = $('#usersBody');
+  body.innerHTML = '';
+  let totMonthly = 0, totMonthlyBudget = 0, totDaily = 0, totDailyBudget = 0;
+  usersCache.forEach(u => {
+    const mb = u.monthly_budget || 0;
+    const ms = u.monthly_spend || 0;
+    const db2 = u.daily_budget || 0;
+    const ds = u.daily_spend || 0;
+    totMonthly += ms; totMonthlyBudget += mb;
+    totDaily += ds; totDailyBudget += db2;
+    const pct = mb > 0 ? Math.min(100, (ms / mb) * 100) : 0;
+    const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+    const budgetStr = mb > 0
+      ? `$${ms.toFixed(4)} / $${mb.toFixed(2)}`
+      : `$${ms.toFixed(4)} / unlimited`;
+    const dpct = db2 > 0 ? Math.min(100, (ds / db2) * 100) : 0;
+    const dcls = dpct >= 100 ? 'over' : dpct >= 80 ? 'warn' : '';
+    const dailyStr = db2 > 0
+      ? `$${ds.toFixed(4)} / $${db2.toFixed(2)}`
+      : `$${ds.toFixed(4)} / unlimited`;
+    const safeName = esc(u.name);
+    const jsName = esc(u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+    body.innerHTML += `<tr>
+      <td>${u.id}</td>
+      <td><strong>${safeName}</strong></td>
+      <td>
+        <div class="budget-bar">
+          <div class="budget-fill ${cls}" style="width:${mb>0?pct:0}%"></div>
+          <div class="budget-text">${budgetStr}</div>
+        </div>
+      </td>
+      <td>
+        <div class="budget-bar">
+          <div class="budget-fill ${dcls}" style="width:${db2>0?dpct:0}%"></div>
+          <div class="budget-text">${dailyStr}</div>
+        </div>
+      </td>
+      <td><span class="badge ${u.active?'badge-ok':'badge-off'}">${u.active?'active':'disabled'}</span></td>
+      <td class="muted">${esc(u.created_at||'')}</td>
+      <td style="display:flex;gap:0.25rem;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-secondary btn-sm" data-tooltip="Edit monthly budget" onclick="editBudget(${u.id},'${jsName}',${mb})">Monthly</button>
+        <button class="btn btn-secondary btn-sm" data-tooltip="Edit daily budget" onclick="editDailyBudget(${u.id},'${jsName}',${db2})">Daily</button>
+        <button class="btn btn-outline btn-sm" data-tooltip="Reset monthly spend" onclick="resetMonthly(${u.id})">Reset M</button>
+        <button class="btn btn-outline btn-sm" data-tooltip="Reset daily spend" onclick="resetDaily(${u.id})">Reset D</button>
+        <label data-tooltip="${u.active?'Disable':'Enable'} user"><input type="checkbox" class="switch" ${u.active?'checked':''} onchange="toggleUser(${u.id},${u.active})"></label>
+        <button class="btn btn-destructive btn-sm" data-tooltip="Delete user permanently" onclick="deleteUser(${u.id},'${jsName}')">Delete</button>
+      </td>
+    </tr>`;
+  });
+  // Totals row
+  if (usersCache.length > 0) {
+    body.innerHTML += `<tr class="total-row">
+      <td></td>
+      <td>Total (${usersCache.length} users)</td>
+      <td>$${totMonthly.toFixed(4)} / $${totMonthlyBudget.toFixed(2)}</td>
+      <td>$${totDaily.toFixed(4)} / $${totDailyBudget.toFixed(2)}</td>
+      <td colspan="3"></td>
+    </tr>`;
+  }
+}
+
+function renderKeyUserSelect() {
+  const sel = $('#keyUserSelect');
+  sel.innerHTML = '';
+  usersCache.forEach(u => {
+    sel.innerHTML += `<option value="${u.id}">${esc(u.name)}</option>`;
+  });
+}
+
+async function loadKeys() {
+  const body = $('#keysBody');
+  body.innerHTML = '';
+  for (const u of usersCache) {
+    const keys = await api(`/admin/users/${u.id}/keys`);
+    keys.forEach(k => {
+      const safeKey = esc(k.key);
+      body.innerHTML += `<tr>
+        <td class="mono">${safeKey}</td>
+        <td>${esc(u.name)}</td>
+        <td>${esc(k.label||'—')}</td>
+        <td><label data-tooltip="${k.active?'Disable':'Enable'} key"><input type="checkbox" class="switch" ${k.active?'checked':''} onchange="toggleKey('${safeKey}',${k.active})"></label></td>
+        <td class="muted">${esc(k.created_at||'')}</td>
+        <td><button class="btn btn-destructive btn-sm" data-tooltip="Delete this key" onclick="deleteKey('${safeKey}')">Delete</button></td>
+      </tr>`;
+    });
+  }
+}
+
+async function loadUsage() {
+  const rows = await api('/admin/usage');
+  const body = $('#usageBody');
+  body.innerHTML = '';
+  let tReq = 0, tIn = 0, tOut = 0, tCost = 0;
+  rows.forEach(r => {
+    tReq += r.requests||0; tIn += r.total_input||0;
+    tOut += r.total_output||0; tCost += r.total_cost||0;
+    body.innerHTML += `<tr>
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.model)}</td>
+      <td>${r.requests}</td>
+      <td>${(r.total_input||0).toLocaleString()}</td>
+      <td>${(r.total_output||0).toLocaleString()}</td>
+      <td>$${(r.total_cost||0).toFixed(4)}</td>
+    </tr>`;
+  });
+  if (rows.length > 0) {
+    body.innerHTML += `<tr class="total-row">
+      <td>Total</td><td></td>
+      <td>${tReq}</td>
+      <td>${tIn.toLocaleString()}</td>
+      <td>${tOut.toLocaleString()}</td>
+      <td>$${tCost.toFixed(4)}</td>
+    </tr>`;
+  }
+  if (!rows.length) body.innerHTML = '<tr><td colspan="6" class="muted">No usage yet</td></tr>';
+}
+
+async function loadHistory() {
+  const rows = await api('/admin/monthly-history');
+  const body = $('#historyBody');
+  body.innerHTML = '';
+  let tSpend = 0;
+  rows.forEach(r => {
+    const pct = r.budget > 0 ? ((r.spend / r.budget) * 100).toFixed(1) : '—';
+    tSpend += r.spend || 0;
+    body.innerHTML += `<tr>
+      <td>${esc(r.month)}</td>
+      <td>${esc(r.name)}</td>
+      <td>$${(r.budget||0).toFixed(2)}</td>
+      <td>$${(r.spend||0).toFixed(4)}</td>
+      <td>${typeof pct === 'string' ? pct : pct + '%'}</td>
+    </tr>`;
+  });
+  if (rows.length > 0) {
+    body.innerHTML += `<tr class="total-row">
+      <td>Total</td><td></td><td></td>
+      <td>$${tSpend.toFixed(4)}</td><td></td>
+    </tr>`;
+  }
+  if (!rows.length) body.innerHTML = '<tr><td colspan="5" class="muted">No history yet</td></tr>';
+}
+
+async function loadAll() {
+  try {
+    await loadModels();
+    await loadUsers();
+    await loadKeys();
+    await loadUsage();
+    await loadHistory();
+    $('#status').textContent = 'Connected';
+    $('#status').style.color = 'var(--success)';
+  } catch(e) {
+    $('#status').textContent = 'Error';
+    $('#status').style.color = 'var(--destructive)';
+    toast(e.message, false);
+  }
+}
+
+async function refreshData() {
+  try {
+    await loadUsers();
+    await loadKeys();
+    await loadUsage();
+    await loadHistory();
+  } catch(e) { /* silent refresh */ }
+}
+
+// -- Actions --
+
+async function createUser() {
+  const name = $('#newUserName').value.trim();
+  if (!name) return toast('Name required', false);
+  const budget = parseFloat($('#newUserBudget').value) || 0;
+  const daily = parseFloat($('#newUserDailyBudget').value) || 0;
+  try {
+    const r = await api('/admin/users', {
+      method:'POST',
+      body: JSON.stringify({name, monthly_budget: budget, daily_budget: daily})
+    });
+    toast(`User "${name}" created — key: ${r.api_key}`);
+    $('#newUserName').value = '';
+    $('#newUserBudget').value = '';
+    $('#newUserDailyBudget').value = '';
+    await loadUsers();
+    await loadKeys();
+  } catch(e) { toast(e.message, false); }
+}
+
+async function createKey() {
+  const uid = $('#keyUserSelect').value;
+  const label = $('#newKeyLabel').value.trim();
+  try {
+    const r = await api(`/admin/users/${uid}/keys`, {
+      method:'POST',
+      body: JSON.stringify({label})
+    });
+    toast(`Key created: ${r.key}`);
+    $('#newKeyLabel').value = '';
+    await loadKeys();
+  } catch(e) { toast(e.message, false); }
+}
+
+async function editBudget(id, name, current) {
+  const html = `<input type="number" id="dlgInput" step="0.01"
+    value="${current}" style="width:100%">`;
+  const ok = await openDialog(
+    'Edit Monthly Budget',
+    `Set monthly budget for "${name}"`,
+    html, 'Save'
+  );
+  if (!ok) return;
+  const val = parseFloat($('#dlgInput').value) || 0;
+  try {
+    await api(`/admin/users/${id}`, {
+      method:'PATCH',
+      body: JSON.stringify({monthly_budget: val})
+    });
+    toast('Monthly budget updated'); loadUsers();
+  } catch(e) { toast(e.message, false); }
+}
+
+async function editDailyBudget(id, name, current) {
+  const html = `<input type="number" id="dlgInput" step="0.01"
+    value="${current}" style="width:100%">`;
+  const ok = await openDialog(
+    'Edit Daily Budget',
+    `Set daily budget for "${name}"`,
+    html, 'Save'
+  );
+  if (!ok) return;
+  const val = parseFloat($('#dlgInput').value) || 0;
+  try {
+    await api(`/admin/users/${id}`, {
+      method:'PATCH',
+      body: JSON.stringify({daily_budget: val})
+    });
+    toast('Daily budget updated'); loadUsers();
+  } catch(e) { toast(e.message, false); }
+}
+
+async function resetMonthly(id) {
+  const ok = await openDialog(
+    'Reset Monthly Spend',
+    'This will reset the monthly spend counter to $0.',
+    '', 'Reset', true
+  );
+  if (!ok) return;
+  try {
+    await api(`/admin/users/${id}`, {
+      method:'PATCH',
+      body: JSON.stringify({reset_spend: true})
+    });
+    toast('Monthly spend reset'); loadUsers();
+  } catch(e) { toast(e.message, false); }
+}
+
+async function resetDaily(id) {
+  const ok = await openDialog(
+    'Reset Daily Spend',
+    'This will reset the daily spend counter to $0.',
+    '', 'Reset', true
+  );
+  if (!ok) return;
+  try {
+    await api(`/admin/users/${id}`, {
+      method:'PATCH',
+      body: JSON.stringify({reset_daily_spend: true})
+    });
+    toast('Daily spend reset'); loadUsers();
+  } catch(e) { toast(e.message, false); }
+}
+
+function toggleUser(id, active) {
+  api(`/admin/users/${id}`, {
+    method:'PATCH',
+    body: JSON.stringify({active: !active})
+  }).then(() => { toast(active?'User disabled':'User enabled'); loadUsers(); })
+    .catch(e => toast(e.message, false));
+}
+
+async function deleteUser(id, name) {
+  const ok = await openDialog(
+    'Delete User',
+    `Delete "${name}" and all their keys/usage? This cannot be undone.`,
+    '', 'Delete', true
+  );
+  if (!ok) return;
+  try {
+    await api(`/admin/users/${id}`, {method:'DELETE'});
+    toast(`User "${name}" deleted`); refreshData();
+  } catch(e) { toast(e.message, false); }
+}
+
+function toggleKey(key, active) {
+  api(`/admin/keys/${key}`, {
+    method:'PATCH',
+    body: JSON.stringify({active: !active})
+  }).then(() => { toast(active?'Key disabled':'Key enabled'); loadKeys(); })
+    .catch(e => toast(e.message, false));
+}
+
+async function deleteKey(key) {
+  const short = key.slice(0, 12) + '...';
+  const ok = await openDialog(
+    'Delete API Key',
+    `Delete key "${short}"? This cannot be undone.`,
+    '', 'Delete', true
+  );
+  if (!ok) return;
+  try {
+    await api(`/admin/keys/${key}`, {method:'DELETE'});
+    toast('API key deleted'); loadKeys();
+  } catch(e) { toast(e.message, false); }
+}
+
+// -- Enter on login fields --
+$('#loginUser').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+$('#loginPass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+// -- Auto-login from session --
+const saved = sessionStorage.getItem('masterKey');
+if (saved) {
+  masterKey = saved;
+  showAdmin();
+}
+</script>
+</body>
+</html>

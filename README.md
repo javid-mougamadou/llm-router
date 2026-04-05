@@ -154,3 +154,9 @@ Override models via `LLM_ROUTER_MODELS` env var (JSON).
 - **User sessions** use HMAC-SHA256 signed JWT tokens with 24h expiry. The `MASTER_KEY` is used as the signing secret.
 - **Admin access** uses the `MASTER_KEY` directly (no JWT) — keep it secret.
 - Default user password is `changeme` — users should change it via the dashboard.
+
+---
+
+## Contact
+
+**Contact :** **Javid Mougamadou** — [Site web](https://javid-mougamadou.pro/) · [GitHub](https://github.com/javid-mougamadou) · [LinkedIn](https://www.linkedin.com/in/mougamadoujavid/) · [Discord](https://discord.gg/8rK6CKGb) · [Email](mailto:javid.mougamadou2@gmail.com)

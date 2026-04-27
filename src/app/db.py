@@ -1,4 +1,4 @@
-"""SQLite database: users, api_keys, usage_log, monthly_budget_history."""
+"""SQLite database: users, api_keys, usage_log, daily_budget_history."""
 
 import hashlib
 import hmac
@@ -63,14 +63,14 @@ CREATE TABLE IF NOT EXISTS usage_log (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS monthly_budget_history (
+CREATE TABLE IF NOT EXISTS daily_budget_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    month TEXT NOT NULL,
+    day TEXT NOT NULL,
     budget REAL NOT NULL DEFAULT 0,
     spend REAL NOT NULL DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(user_id, month)
+    UNIQUE(user_id, day)
 );
 """
 
@@ -129,5 +129,9 @@ async def init_db():
         "UPDATE users SET password_hash = ? "
         "WHERE password_hash = '' OR password_hash IS NULL",
         (default_hash,),
+    )
+    # Drop legacy monthly_budget_history (replaced by daily)
+    await db.execute(
+        "DROP TABLE IF EXISTS monthly_budget_history"
     )
     await db.commit()

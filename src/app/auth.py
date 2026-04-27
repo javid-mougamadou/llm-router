@@ -12,6 +12,55 @@ def _current_month() -> str:
     return date.today().strftime("%Y-%m")
 
 
+async def refresh_user_budgets(user: dict) -> dict:
+    """Reset daily/monthly spend if period changed.
+
+    Works on a single user dict (must have id,
+    daily_reset_at, monthly_reset_at, etc.).
+    Returns the updated dict.
+    """
+    db = await get_db()
+    today = date.today().isoformat()
+    month = _current_month()
+    changed = False
+
+    if user.get("monthly_reset_at") != month:
+        await db.execute(
+            "UPDATE users SET monthly_spend = 0, "
+            "monthly_reset_at = ? WHERE id = ?",
+            (month, user["id"]),
+        )
+        user["monthly_spend"] = 0
+        user["monthly_reset_at"] = month
+        changed = True
+
+    if user.get("daily_reset_at") != today:
+        old_day = user.get("daily_reset_at") or ""
+        if old_day and user["daily_spend"] > 0:
+            await db.execute(
+                "INSERT OR IGNORE INTO daily_budget_history "
+                "(user_id, day, budget, spend) "
+                "VALUES (?,?,?,?)",
+                (
+                    user["id"], old_day,
+                    user["daily_budget"],
+                    user["daily_spend"],
+                ),
+            )
+        await db.execute(
+            "UPDATE users SET daily_spend = 0, "
+            "daily_reset_at = ? WHERE id = ?",
+            (today, user["id"]),
+        )
+        user["daily_spend"] = 0
+        user["daily_reset_at"] = today
+        changed = True
+
+    if changed:
+        await db.commit()
+    return user
+
+
 async def resolve_user(request: Request) -> dict:
     """Extract API key from request, validate it, check budget."""
     api_key = (
@@ -42,38 +91,8 @@ async def resolve_user(request: Request) -> dict:
 
     user = dict(row[0])
 
-    # Auto-reset monthly spend on new month
-    month = _current_month()
-    if user.get("monthly_reset_at") != month:
-        old_spend = user["monthly_spend"]
-        old_budget = user["monthly_budget"]
-        old_month = user.get("monthly_reset_at") or ""
-        if old_month and old_spend > 0:
-            await db.execute(
-                "INSERT OR IGNORE INTO monthly_budget_history "
-                "(user_id, month, budget, spend) VALUES (?,?,?,?)",
-                (user["id"], old_month, old_budget, old_spend),
-            )
-        await db.execute(
-            "UPDATE users SET monthly_spend = 0, "
-            "monthly_reset_at = ? WHERE id = ?",
-            (month, user["id"]),
-        )
-        await db.commit()
-        user["monthly_spend"] = 0
-        user["monthly_reset_at"] = month
-
-    # Auto-reset daily spend at midnight UTC
-    today = date.today().isoformat()
-    if user.get("daily_reset_at") != today:
-        await db.execute(
-            "UPDATE users SET daily_spend = 0, "
-            "daily_reset_at = ? WHERE id = ?",
-            (today, user["id"]),
-        )
-        await db.commit()
-        user["daily_spend"] = 0
-        user["daily_reset_at"] = today
+    # Auto-reset daily & monthly spend
+    user = await refresh_user_budgets(user)
 
     # Check monthly budget
     if user["monthly_budget"] > 0 and user["monthly_spend"] >= user["monthly_budget"]:

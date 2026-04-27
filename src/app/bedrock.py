@@ -59,6 +59,26 @@ def _to_converse_messages(messages: list[dict]) -> list[dict]:
                     blocks.append({"text": b})
                 elif b.get("type") == "text":
                     blocks.append({"text": b["text"]})
+                elif b.get("type") == "tool_use":
+                    blocks.append({"toolUse": {
+                        "toolUseId": b["id"],
+                        "name": b["name"],
+                        "input": b.get("input", {}),
+                    }})
+                elif b.get("type") == "tool_result":
+                    rc_list = b.get("content") or []
+                    if isinstance(rc_list, str):
+                        rc_list = [{"type": "text", "text": rc_list}]
+                    result_content = []
+                    for rc in rc_list:
+                        if isinstance(rc, str):
+                            result_content.append({"text": rc})
+                        elif rc.get("type") == "text":
+                            result_content.append({"text": rc["text"]})
+                    blocks.append({"toolResult": {
+                        "toolUseId": b["tool_use_id"],
+                        "content": result_content or [{"text": ""}],
+                    }})
             out.append({"role": role, "content": blocks})
     return out
 
@@ -80,7 +100,7 @@ def _extract_system(messages: list[dict]) -> list[dict] | None:
     return parts if parts else None
 
 
-def _build_kwargs(model, messages, max_tokens, temperature):
+def _build_kwargs(model, messages, max_tokens, temperature, tools=None, tool_choice=None):
     """Build common kwargs for converse/converse_stream."""
     bedrock_id = MODELS[model]["bedrock_id"]
     conv_msgs = _to_converse_messages(messages)
@@ -94,6 +114,22 @@ def _build_kwargs(model, messages, max_tokens, temperature):
         kwargs["system"] = system
     if temperature is not None:
         kwargs["inferenceConfig"]["temperature"] = temperature
+    if tools:
+        tool_specs = [{"toolSpec": {
+            "name": t["name"],
+            "description": t.get("description", ""),
+            "inputSchema": {"json": t.get("input_schema", {})},
+        }} for t in tools]
+        tc = {"tools": tool_specs}
+        if tool_choice:
+            ctype = tool_choice.get("type", "auto")
+            if ctype == "auto":
+                tc["toolChoice"] = {"auto": {}}
+            elif ctype == "any":
+                tc["toolChoice"] = {"any": {}}
+            elif ctype == "tool":
+                tc["toolChoice"] = {"tool": {"name": tool_choice["name"]}}
+        kwargs["toolConfig"] = tc
     return kwargs
 
 
@@ -102,11 +138,13 @@ def converse_no_stream(
     messages: list[dict],
     max_tokens: int = 4096,
     temperature: float | None = None,
+    tools: list[dict] | None = None,
+    tool_choice: dict | None = None,
 ) -> dict:
     """Non-streaming Bedrock Converse call. Returns full response."""
     try:
         client = _get_client()
-        kwargs = _build_kwargs(model, messages, max_tokens, temperature)
+        kwargs = _build_kwargs(model, messages, max_tokens, temperature, tools, tool_choice)
         return client.converse(**kwargs)
     except HTTPException:
         raise
@@ -128,6 +166,8 @@ async def converse_stream(
     messages: list[dict],
     max_tokens: int = 4096,
     temperature: float | None = None,
+    tools: list[dict] | None = None,
+    tool_choice: dict | None = None,
 ) -> AsyncIterator[dict]:
     """Streaming Bedrock ConverseStream. Yields event dicts.
 
@@ -136,7 +176,7 @@ async def converse_stream(
     """
     try:
         client = _get_client()
-        kwargs = _build_kwargs(model, messages, max_tokens, temperature)
+        kwargs = _build_kwargs(model, messages, max_tokens, temperature, tools, tool_choice)
 
         loop = asyncio.get_running_loop()
         resp = await loop.run_in_executor(

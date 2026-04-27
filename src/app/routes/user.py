@@ -4,6 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Request, HTTPException
 from app.db import get_db, hash_password, verify_password
 from app.jwt_utils import create_token, verify_token
+from app.auth import refresh_user_budgets
 
 router = APIRouter(prefix="/user")
 
@@ -28,13 +29,16 @@ async def _require_user(request: Request) -> dict:
     db = await get_db()
     rows = await db.execute_fetchall(
         "SELECT id, name, monthly_budget, monthly_spend, "
-        "daily_budget, daily_spend, active "
+        "monthly_reset_at, daily_budget, daily_spend, "
+        "daily_reset_at, active "
         "FROM users WHERE id = ? AND active = 1",
         (user_id,),
     )
     if not rows:
         raise HTTPException(401, "Invalid session")
-    return dict(rows[0])
+    user = dict(rows[0])
+    user = await refresh_user_budgets(user)
+    return user
 
 
 # -- User Login --
@@ -156,16 +160,33 @@ async def my_monthly_usage(request: Request):
     return [dict(r) for r in rows]
 
 
-# -- User Monthly History --
+# -- User Monthly History (aggregated from daily) --
 
 @router.get("/history")
 async def my_history(request: Request):
     user = await _require_user(request)
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT month, budget, spend "
-        "FROM monthly_budget_history "
-        "WHERE user_id = ? ORDER BY month DESC",
+        "SELECT strftime('%Y-%m', day) as month, "
+        "SUM(spend) as spend "
+        "FROM daily_budget_history "
+        "WHERE user_id = ? "
+        "GROUP BY month ORDER BY month DESC",
+        (user["id"],),
+    )
+    return [dict(r) for r in rows]
+
+
+# -- User Daily History --
+
+@router.get("/daily-history")
+async def my_daily_history(request: Request):
+    user = await _require_user(request)
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT day, budget, spend "
+        "FROM daily_budget_history "
+        "WHERE user_id = ? ORDER BY day DESC",
         (user["id"],),
     )
     return [dict(r) for r in rows]

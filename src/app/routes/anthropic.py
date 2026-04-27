@@ -23,6 +23,8 @@ async def messages(request: Request):
     messages = body.get("messages", [])
     max_tokens = min(int(body.get("max_tokens", 4096)), 32768)
     temperature = body.get("temperature")
+    tools = body.get("tools")
+    tool_choice = body.get("tool_choice")
     stream = body.get("stream", False)
 
     # Prepend system if present at top level
@@ -36,18 +38,18 @@ async def messages(request: Request):
 
     if stream:
         return StreamingResponse(
-            _stream_anthropic(user, model, messages, max_tokens, temperature),
+            _stream_anthropic(user, model, messages, max_tokens, temperature, tools, tool_choice),
             media_type="text/event-stream",
         )
     else:
-        return await _no_stream_anthropic(user, model, messages, max_tokens, temperature)
+        return await _no_stream_anthropic(user, model, messages, max_tokens, temperature, tools, tool_choice)
 
 
-async def _no_stream_anthropic(user, model, messages, max_tokens, temperature):
+async def _no_stream_anthropic(user, model, messages, max_tokens, temperature, tools=None, tool_choice=None):
     import asyncio
     from functools import partial
     resp = await asyncio.get_running_loop().run_in_executor(
-        None, partial(converse_no_stream, model, messages, max_tokens, temperature)
+        None, partial(converse_no_stream, model, messages, max_tokens, temperature, tools, tool_choice)
     )
     output = resp.get("output", {})
     content_blocks = output.get("message", {}).get("content", [])
@@ -57,22 +59,34 @@ async def _no_stream_anthropic(user, model, messages, max_tokens, temperature):
 
     await log_usage(user["id"], model, input_tokens, output_tokens)
 
-    text = "".join(b.get("text", "") for b in content_blocks)
+    content = []
+    stop_reason = "end_turn"
+    for b in content_blocks:
+        if "text" in b:
+            content.append({"type": "text", "text": b["text"]})
+        elif "toolUse" in b:
+            tu = b["toolUse"]
+            content.append({"type": "tool_use", "id": tu["toolUseId"],
+                            "name": tu["name"], "input": tu.get("input", {})})
+            stop_reason = "tool_use"
+
     return JSONResponse({
         "id": f"msg_{uuid.uuid4().hex[:24]}",
         "type": "message",
         "role": "assistant",
         "model": model,
-        "content": [{"type": "text", "text": text}],
-        "stop_reason": "end_turn",
+        "content": content,
+        "stop_reason": stop_reason,
         "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
     })
 
 
-async def _stream_anthropic(user, model, messages, max_tokens, temperature):
+async def _stream_anthropic(user, model, messages, max_tokens, temperature, tools=None, tool_choice=None):
     msg_id = f"msg_{uuid.uuid4().hex[:24]}"
     input_tokens = 0
     output_tokens = 0
+    block_idx = -1
+    stop_reason = "end_turn"
 
     yield _sse("message_start", {
         "type": "message_start",
@@ -83,31 +97,52 @@ async def _stream_anthropic(user, model, messages, max_tokens, temperature):
         },
     })
 
-    yield _sse("content_block_start", {
-        "type": "content_block_start",
-        "index": 0,
-        "content_block": {"type": "text", "text": ""},
-    })
-
-    async for event in converse_stream(model, messages, max_tokens, temperature):
-        if "contentBlockDelta" in event:
+    async for event in converse_stream(model, messages, max_tokens, temperature, tools, tool_choice):
+        if "contentBlockStart" in event:
+            block_idx += 1
+            start = event["contentBlockStart"].get("start", {})
+            if "toolUse" in start:
+                tu = start["toolUse"]
+                yield _sse("content_block_start", {
+                    "type": "content_block_start",
+                    "index": block_idx,
+                    "content_block": {"type": "tool_use", "id": tu["toolUseId"],
+                                      "name": tu["name"], "input": {}},
+                })
+                stop_reason = "tool_use"
+            else:
+                yield _sse("content_block_start", {
+                    "type": "content_block_start",
+                    "index": block_idx,
+                    "content_block": {"type": "text", "text": ""},
+                })
+        elif "contentBlockDelta" in event:
             delta = event["contentBlockDelta"].get("delta", {})
-            text = delta.get("text", "")
-            if text:
+            if "text" in delta:
                 yield _sse("content_block_delta", {
                     "type": "content_block_delta",
-                    "index": 0,
-                    "delta": {"type": "text_delta", "text": text},
+                    "index": block_idx,
+                    "delta": {"type": "text_delta", "text": delta["text"]},
                 })
+            elif "toolUse" in delta:
+                yield _sse("content_block_delta", {
+                    "type": "content_block_delta",
+                    "index": block_idx,
+                    "delta": {"type": "input_json_delta",
+                              "partial_json": delta["toolUse"].get("input", "")},
+                })
+        elif "contentBlockStop" in event:
+            yield _sse("content_block_stop", {
+                "type": "content_block_stop", "index": block_idx,
+            })
         elif "metadata" in event:
             usage = event["metadata"].get("usage", {})
             input_tokens = usage.get("inputTokens", 0)
             output_tokens = usage.get("outputTokens", 0)
 
-    yield _sse("content_block_stop", {"type": "content_block_stop", "index": 0})
     yield _sse("message_delta", {
         "type": "message_delta",
-        "delta": {"stop_reason": "end_turn"},
+        "delta": {"stop_reason": stop_reason},
         "usage": {"output_tokens": output_tokens},
     })
     yield _sse("message_stop", {"type": "message_stop"})
@@ -117,3 +152,18 @@ async def _stream_anthropic(user, model, messages, max_tokens, temperature):
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@router.get("/v1/budget")
+async def get_budget(request: Request):
+    """Return the current user's daily and monthly budget status.
+    Authenticated via API key (same as /v1/messages)."""
+    user = await resolve_user(request)
+    return {
+        "daily_budget":      user["daily_budget"],
+        "daily_spend":       user["daily_spend"],
+        "daily_remaining":   user["daily_budget"] - user["daily_spend"],
+        "monthly_budget":    user["monthly_budget"],
+        "monthly_spend":     user["monthly_spend"],
+        "monthly_remaining": user["monthly_budget"] - user["monthly_spend"],
+    }

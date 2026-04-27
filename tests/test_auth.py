@@ -6,7 +6,7 @@ import pytest
 from datetime import date
 from fastapi.testclient import TestClient
 
-from app.db import init_db
+from app.db import init_db, close_db
 from main import app
 
 MASTER = "sk-test-master"
@@ -16,10 +16,12 @@ HEADERS = {"x-api-key": MASTER, "content-type": "application/json"}
 @pytest.fixture(autouse=True)
 def reset_db():
     db_path = os.environ["LLM_ROUTER_DB"]
+    asyncio.get_event_loop().run_until_complete(close_db())
     if os.path.exists(db_path):
         os.remove(db_path)
     asyncio.get_event_loop().run_until_complete(init_db())
     yield
+    asyncio.get_event_loop().run_until_complete(close_db())
     if os.path.exists(db_path):
         os.remove(db_path)
 
@@ -68,11 +70,11 @@ def test_monthly_budget_enforcement(client):
         from app.auth import _current_month
         db = await get_db()
         await db.execute(
-            "UPDATE users SET monthly_spend = 1.5, monthly_reset_at = ? WHERE id = ?",
+            "UPDATE users SET monthly_spend = 1.5, "
+            "monthly_reset_at = ? WHERE id = ?",
             (_current_month(), uid),
         )
         await db.commit()
-        await db.close()
 
     asyncio.get_event_loop().run_until_complete(set_spend())
 
@@ -89,11 +91,11 @@ def test_daily_budget_enforcement(client):
         today = date.today().isoformat()
         db = await get_db()
         await db.execute(
-            "UPDATE users SET daily_spend = 0.60, daily_reset_at = ? WHERE id = ?",
+            "UPDATE users SET daily_spend = 0.60, "
+            "daily_reset_at = ? WHERE id = ?",
             (today, uid),
         )
         await db.commit()
-        await db.close()
 
     asyncio.get_event_loop().run_until_complete(set_daily())
 

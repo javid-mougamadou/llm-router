@@ -8,6 +8,7 @@ from app.db import get_db, hash_password, DEFAULT_PASSWORD
 from app.config import (
     MASTER_KEY, ADMIN_USER, ADMIN_PASSWORD, AWS_REGION, AWS_PROFILE,
 )
+from app.auth import refresh_user_budgets
 
 router = APIRouter(prefix="/admin")
 
@@ -65,7 +66,10 @@ async def list_users(request: Request):
         "monthly_reset_at, daily_budget, daily_spend, "
         "daily_reset_at, active, created_at FROM users"
     )
-    return [dict(r) for r in rows]
+    users = [dict(r) for r in rows]
+    for u in users:
+        await refresh_user_budgets(u)
+    return users
 
 
 @router.post("/users")
@@ -138,9 +142,12 @@ async def delete_user(user_id: int, request: Request):
     _require_admin(request)
     db = await get_db()
     await db.execute(
-        "DELETE FROM monthly_budget_history WHERE user_id = ?", (user_id,),
+        "DELETE FROM daily_budget_history WHERE user_id = ?",
+        (user_id,),
     )
-    await db.execute("DELETE FROM usage_log WHERE user_id = ?", (user_id,))
+    await db.execute(
+        "DELETE FROM usage_log WHERE user_id = ?", (user_id,),
+    )
     await db.execute("DELETE FROM api_keys WHERE user_id = ?", (user_id,))
     await db.execute("DELETE FROM users WHERE id = ?", (user_id,))
     await db.commit()
@@ -223,16 +230,34 @@ async def usage_summary(request: Request):
     return [dict(r) for r in rows]
 
 
-# -- Monthly Budget History --
+# -- Monthly Budget History (aggregated from daily) --
 
 @router.get("/monthly-history")
 async def monthly_history(request: Request):
     _require_admin(request)
     db = await get_db()
     rows = await db.execute_fetchall("""
-        SELECT h.month, u.name, h.budget, h.spend
-        FROM monthly_budget_history h
-        JOIN users u ON h.user_id = u.id
-        ORDER BY h.month DESC, u.name
+        SELECT strftime('%Y-%m', d.day) as month,
+               u.name,
+               SUM(d.spend) as spend
+        FROM daily_budget_history d
+        JOIN users u ON d.user_id = u.id
+        GROUP BY month, u.name
+        ORDER BY month DESC, u.name
+    """)
+    return [dict(r) for r in rows]
+
+
+# -- Daily Budget History --
+
+@router.get("/daily-history")
+async def daily_history(request: Request):
+    _require_admin(request)
+    db = await get_db()
+    rows = await db.execute_fetchall("""
+        SELECT d.day, u.name, d.budget, d.spend
+        FROM daily_budget_history d
+        JOIN users u ON d.user_id = u.id
+        ORDER BY d.day DESC, u.name
     """)
     return [dict(r) for r in rows]

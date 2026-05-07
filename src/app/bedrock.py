@@ -3,6 +3,7 @@
 import logging
 import boto3
 import asyncio
+from botocore.config import Config
 from typing import AsyncIterator
 from functools import partial
 from botocore.exceptions import (
@@ -38,7 +39,11 @@ def _get_client():
         session = boto3.Session(
             profile_name=AWS_PROFILE, region_name=AWS_REGION,
         )
-        _client = session.client("bedrock-runtime", region_name=AWS_REGION)
+        _client = session.client(
+            "bedrock-runtime",
+            region_name=AWS_REGION,
+            config=Config(read_timeout=300, connect_timeout=10),
+        )
     return _client
 
 
